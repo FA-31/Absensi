@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Absensi Guru</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#14213d;--bg:#f4f6f8;--ac:#0f766e;--mut:#64748b;--ln:#e2e8f0;--bad:#b91c1c}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 Manrope,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--ink);color:#fff;font-weight:800}
+header button{background:none;border:1px solid #fff5;color:#fff;padding:4px 10px;margin-left:6px;border-radius:6px}
+nav{display:flex;gap:4px;overflow-x:auto;padding:8px 16px 0;max-width:760px;margin:auto}
+nav button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px;font:600 14px Manrope;color:var(--mut);white-space:nowrap}
+nav .on{color:var(--ink);border-color:var(--ac)}
+main{max-width:760px;margin:auto;padding:12px 16px 40px}
+.card{background:#fff;border:1px solid var(--ln);border-radius:10px;padding:16px;margin-bottom:12px}
+input,select,textarea{width:100%;padding:10px;margin:4px 0 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+button{font:600 14px Manrope;padding:10px 16px;border:0;border-radius:8px;background:var(--ac);color:#fff;cursor:pointer}
+button.alt{background:var(--ink)}button.no{background:var(--bad)}button.sm{padding:4px 10px;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 6px;border-bottom:1px solid var(--ln);text-align:left}
+.wrap{overflow-x:auto}.bar{display:flex;align-items:center;gap:8px;margin-top:8px}.bar span{width:60px}.bar i{height:14px;border-radius:4px;background:var(--ac);min-width:2px}
+.bar i.Alpa{background:var(--bad)}.bar i.Sakit,.bar i.Izin{background:#d97706}.bar em{font-style:normal;font-weight:800}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;display:none;max-width:90%}
+#toast.er{background:var(--bad)}.login{max-width:360px;margin:60px auto}h2{margin:8px 0 12px}
+</style></head><body>
+<header><span>Absensi Guru</span><span><button onclick="lang()" id="lg"></button><button id="lo" onclick="out()" hidden></button></span></header>
+<nav id="nav"></nav><main id="v"></main><div id="toast"></div>
+<script>
+const API_URL='PASTE_URL_WEB_APP_DI_SINI';
+let L=localStorage.lang||'id',S=JSON.parse(localStorage.s||'null'),cur='home';
+const $=s=>document.querySelector(s),t=(a,b)=>L=='id'?a:b,esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SL={Hadir:['Hadir','Present'],Izin:['Izin','Excused'],Sakit:['Sakit','Sick'],Alpa:['Alpa','Absent'],Menunggu:['Menunggu','Pending'],Ditolak:['Ditolak','Rejected'],Disetujui:['Disetujui','Approved']};
+const st=x=>SL[x]?SL[x][L=='id'?0:1]:x,mo=()=>new Date(Date.now()+25200000).toISOString().slice(0,7);
+const E=e=>{const p=String(e.message||e).split('|');return p[L=='id'?0:1]||p[0]};
+function toast(m,er){const e=$('#toast');e.textContent=m;e.className=er?'er':'';e.style.display='block';setTimeout(()=>e.style.display='none',3500)}
+async function api(a,d={}){const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({a,token:S&&S.token,...d})}),j=await r.json();
+ if(j.error){if(j.error=='auth')out();throw j.error}return j}
+async function act(a,d,ok){try{await api(a,d);toast(ok);go(cur)}catch(e){toast(E(e),1)}}
+function lang(){L=L=='id'?'en':'id';localStorage.lang=L;boot()}
+function out(){localStorage.removeItem('s');S=null;boot()}
+const pos=()=>new Promise((ok,no)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy}),()=>no(t('Lokasi tidak terdeteksi. Aktifkan GPS atau pakai absen manual.','Location unavailable. Enable GPS or use manual.')),{enableHighAccuracy:true,timeout:15000}):no('GPS?'));
+const shrink=f=>new Promise(r=>{const i=new Image();i.onload=()=>{const k=Math.min(1,800/i.width),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',.7))};i.src=URL.createObjectURL(f)});
+function csv(name,rows){const k=Object.keys(rows[0]||{}).filter(x=>x!='row'),s=[k.join(','),...rows.map(r=>k.map(x=>'"'+String(r[x]).replace(/"/g,'""')+'"').join(','))].join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+s],{type:'text/csv'}));a.download=name+'.csv';a.click()}
+let rows=[];
+const bars=s=>{const k=['Hadir','Izin','Sakit','Alpa'],mx=Math.max(1,...k.map(x=>s[x]));
+ return `<div class=card><b>${t('Bulan ini','This month')}: ${s.pct}% ${t('kehadiran','attendance')}</b>`+k.map(x=>`<div class=bar><span>${st(x)}</span><i class=${x} style="width:${s[x]/mx*70}%"></i><em>${s[x]}</em></div>`).join('')+'</div>'};
+const views={
+async home(){const d=await api('dash',{month:mo()}),r=d.today;
+ $('#v').innerHTML=`<h2>${t('Halo','Hello')}, ${esc(S.nama)}</h2>`+(S.role=='admin'?`<div class=card><b>${t('Hadir hari ini','Present today')}: ${d.adm.hadir}/${d.adm.total}</b><p>${t('Belum absen','Not yet')}: ${d.adm.belum.map(esc).join(', ')||'-'}</p></div>`
+ :`<div class=card><b>${t('Hari ini','Today')}</b><p>${t('Masuk','In')}: ${r?esc(r.Masuk||'-')+' ('+st(r.Status)+')':'-'} &nbsp; ${t('Pulang','Out')}: ${r&&r.Pulang||'-'}</p></div>`+bars(d.s))},
+async abs(){const d=await api('today'),r=d.rec;
+ $('#v').innerHTML=`<div class=card><b>${d.date} ${d.time} WIB</b><p>Check-in: ${d.inW?d.inW.join(' - '):t('Tutup','Closed')} &nbsp; Check-out: ${d.outW.join(' - ')}</p>
+ <p>${t('Masuk','In')}: ${r?esc(r.Masuk)+' ('+st(r.Status)+')':'-'} &nbsp; ${t('Pulang','Out')}: ${r&&r.Pulang||'-'}</p><button onclick=ci()>Check-in</button> <button class=alt onclick=co()>Check-out</button></div>
+ <div class=card id=man><b>${t('Absen manual (jika lokasi tidak terdeteksi)','Manual attendance (if location fails)')}</b><br><textarea id=nt placeholder="${t('Alasan','Reason')}"></textarea>
+ <input type=file id=ph accept="image/*" capture=environment><button onclick=mn()>${t('Kirim untuk disetujui admin','Send for admin approval')}</button></div>`},
+async hist(){const m=$('#mo')?$('#mo').value:mo(),adm=S.role=='admin',d=await api('hist',{month:m,email:adm?'*':undefined});rows=d.a;
+ $('#v').innerHTML=`<input type=month id=mo value=${m} onchange="go('hist')">${adm?`<button class=sm onclick="csv('absensi-${m}',rows)">CSV</button>`:''}<div class="card wrap"><table><tr>${adm?'<th>'+t('Nama','Name')+'</th>':''}<th>${t('Tanggal','Date')}</th><th>${t('Masuk','In')}</th><th>${t('Pulang','Out')}</th><th>Status</th><th></th></tr>`+
+ d.a.map(x=>`<tr>${adm?'<td>'+esc(x.Nama)+'</td>':''}<td>${x.Tanggal}</td><td>${x.Masuk}</td><td>${x.Pulang}</td><td>${st(x.Status)}</td><td>${x.Foto?`<a href="${esc(x.Foto)}" target=_blank>Foto</a> `:''}${adm?`<button class=sm onclick="ed(${x.row},'${x.Masuk}','${x.Pulang}','${x.Status}')">Edit</button>`:''}</td></tr>`).join('')+'</table></div>'},
+async iz(){const d=await api('hist',{month:mo()});
+ $('#v').innerHTML=`<div class=card><b>${t('Ajukan izin/sakit','Request leave')}</b><input type=date id=dt><select id=jn><option value=Izin>${st('Izin')}</option><option value=Sakit>${st('Sakit')}</option></select><textarea id=al placeholder="${t('Alasan','Reason')}"></textarea><button onclick="act('leave',{date:$('#dt').value,jenis:$('#jn').value,alasan:$('#al').value},'OK')">${t('Kirim','Send')}</button></div>
+ <div class="card wrap"><table>`+d.iz.map(x=>`<tr><td>${x.Tanggal}</td><td>${st(x.Jenis)}</td><td>${st(x.Status)}</td></tr>`).join('')+'</table></div>'},
+async ap(){const d=await api('adm_pending'),b=(ty,r,o)=>`<button class="sm ${o?'':'no'}" onclick="act('adm_decide',{type:'${ty}',row:${r},ok:${o}},'OK')">${o?t('Setujui','Approve'):t('Tolak','Reject')}</button> `;
+ $('#v').innerHTML=`<h2>${t('Menunggu persetujuan','Pending approval')}</h2>`+d.a.map(x=>`<div class=card><b>${esc(x.Nama)}</b> ${x.Tanggal} ${x.Masuk}<p>${esc(x.Catatan)}</p><a href="${esc(x.Foto)}" target=_blank>${t('Lihat foto','View photo')}</a><br><br>${b('a',x.row,1)+b('a',x.row,0)}</div>`).join('')
+ +d.iz.map(x=>`<div class=card><b>${esc(x.Nama)}</b> ${x.Tanggal} (${st(x.Jenis)})<p>${esc(x.Alasan)}</p>${b('i',x.row,1)+b('i',x.row,0)}</div>`).join('')||''
+ if(!d.a.length&&!d.iz.length)$('#v').innerHTML+=`<p>${t('Tidak ada permintaan.','Nothing pending.')}</p>`},
+async gr(){const d=await api('adm_teachers');
+ $('#v').innerHTML=`<div class=card><b>${t('Tambah guru','Add teacher')}</b><input id=gn placeholder="${t('Nama','Name')}"><input id=ge placeholder="Email/username"><input id=gp placeholder="${t('Kata sandi','Password')}"><button onclick="act('adm_add',{nama:$('#gn').value,email:$('#ge').value,pw:$('#gp').value},'OK')">${t('Tambah','Add')}</button></div>
+ <div class="card wrap"><table>`+d.map(x=>`<tr><td>${esc(x.Nama)}<br><small>${esc(x.Email)}</small></td><td>${x.Aktif=='ya'?t('Aktif','Active'):t('Nonaktif','Inactive')}</td><td><button class=sm onclick="act('adm_toggle',{email:'${x.Email}'},'OK')">${t('Aktif/nonaktif','Toggle')}</button> <button class="sm alt" onclick="rs('${x.Email}')">Reset</button></td></tr>`).join('')+'</table></div>'},
+async rep(){const m=$('#mo')?$('#mo').value:mo(),d=await api('adm_report',{month:m});rows=d.map(x=>({Nama:x.Nama,Hadir:x.Hadir,Izin:x.Izin,Sakit:x.Sakit,Alpa:x.Alpa,Persen:x.pct}));
+ $('#v').innerHTML=`<input type=month id=mo value=${m} onchange="go('rep')"><button class=sm onclick="csv('rekap-${m}',rows)">CSV / Excel</button><div class="card wrap"><table><tr><th>${t('Nama','Name')}</th><th>H</th><th>I</th><th>S</th><th>A</th><th>%</th></tr>`+
+ rows.map(x=>`<tr><td>${esc(x.Nama)}</td><td>${x.Hadir}</td><td>${x.Izin}</td><td>${x.Sakit}</td><td>${x.Alpa}</td><td>${x.Persen}%</td></tr>`).join('')+'</table></div>'}
+};
+async function ci(){try{const p=await pos();await act('checkin',p,t('Check-in berhasil','Checked in'))}catch(e){let m=E(e);if(m.startsWith('LOC:'))m=m.slice(4);toast(m,1)}}
+const co=()=>act('checkout',{},t('Check-out berhasil','Checked out'));
+async function mn(){const f=$('#ph').files[0];if(!f||!$('#nt').value)return toast(t('Foto dan alasan wajib diisi','Photo and reason required'),1);
+ let p={};try{p=await pos()}catch(e){}await act('manual',{...p,note:$('#nt').value,photo:await shrink(f)},t('Terkirim, menunggu admin','Sent, awaiting admin'))}
+function ed(row,i,o,s){const a=prompt(t('Jam masuk (HH:mm)','In (HH:mm)'),i);if(a===null)return;const b=prompt(t('Jam pulang (HH:mm)','Out (HH:mm)'),o);if(b===null)return;const c=prompt('Status: Hadir / Izin / Sakit / Alpa',s);if(c)act('adm_edit',{row,masuk:a,pulang:b,status:c},'OK')}
+function rs(e){const p=prompt(t('Kata sandi baru','New password'));if(p)act('adm_reset',{email:e,pw:p},'OK')}
+function go(v){cur=v;views[v]().catch(e=>toast(E(e),1));nav()}
+function nav(){if(!S)return;const T=S.role=='admin'?[['home','Ringkasan','Overview'],['ap','Persetujuan','Approvals'],['hist','Riwayat','History'],['gr','Guru','Teachers'],['rep','Laporan','Report']]:[['home','Beranda','Home'],['abs','Absen','Attend'],['hist','Riwayat','History'],['iz','Izin/Sakit','Leave']];
+ $('#nav').innerHTML=T.map(x=>`<button class="${x[0]==cur?'on':''}" onclick="go('${x[0]}')">${t(x[1],x[2])}</button>`).join('')}
+async function login(){try{S=await api('login',{email:$('#em').value,pw:$('#pw').value});localStorage.s=JSON.stringify(S);cur='home';boot()}catch(e){toast(E(e),1)}}
+function boot(){$('#lg').textContent=L=='id'?'EN':'ID';$('#lo').hidden=!S;$('#lo').textContent=t('Keluar','Logout');document.documentElement.lang=L;
+ if(!S){$('#nav').innerHTML='';$('#v').innerHTML=`<div class="card login"><h2>${t('Masuk','Sign in')}</h2><input id=em placeholder="Email / username" autocapitalize=off><input id=pw type=password placeholder="${t('Kata sandi','Password')}" onkeydown="if(event.key=='Enter')login()"><button onclick=login()>${t('Masuk','Sign in')}</button></div>`}else go(cur)}
+boot();
+</script></body></html>
